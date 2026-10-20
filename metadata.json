@@ -1,0 +1,8 @@
+{
+  "name": "교직원 연수 이수증 수합",
+  "description": "교직원 연수 이수증 제출 여부를 등록하고 실시간 현황 집계 및 구글 스프레드시트와 연동할 수 있는 수합 확인 웹 애플리케이션입니다.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
