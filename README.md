@@ -34,12 +34,13 @@
   - 브라우저 로컬 데모 데이터 초기화 기능
 
 ## 기술 스택
-- **프런트엔드**: React 19, TypeScript, Vite, Tailwind CSS
+- **프런트엔드**: HTML5, CSS3, Vanilla JavaScript (GitHub Pages 무빌드 즉시 배포 지원)
 - **저장소/백엔드**:
   - **기본 데모 모드**: 브라우저 `localStorage` 기반 즉시 체험
   - **구글 스프레드시트 연동**: Google Apps Script 웹 앱 API 연동 지원
 
-## 개발 및 빌드
+## 배포 및 실행
+- **GitHub Pages**: 저장소를 푸시한 후 `Settings → Pages → Build and deployment → Deploy from a branch (main / root)`를 선택하면 빌드 과정 없이 즉시 배포됩니다.
 ```bash
 # 개발 서버 실행 (포트 3000)
 npm run dev
