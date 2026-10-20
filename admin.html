@@ -198,7 +198,13 @@
           <input type="date" id="newDue" title="마감일 (선택)">
           <button class="btn primary" id="addTask">추가</button>
         </div>
-        <p class="hint">추가하면 교직원 화면의 제출 목록에 바로 나타납니다. 마감일은 선택 사항입니다.</p>
+        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <span class="hint">빠른 등록 템플릿:</span>
+          <button type="button" class="btn" id="tplGenViolence">4대 폭력 예방교육 (일반)</button>
+          <button type="button" class="btn" id="tplSeniorViolence" style="border-color:#d8b4fe; color:#6b21a8; font-weight:600;">👑 4대 폭력 예방교육 (고위직 대면)</button>
+          <button type="button" class="btn" id="tplMulticultural" style="border-color:#bae6fd; color:#0369a1; font-weight:600;">👨‍🏫 다문화 교육 (교사 전용)</button>
+        </div>
+        <p class="hint" style="margin-top:8px;">추가하면 교직원 화면의 제출 목록에 바로 나타납니다. 마감일은 선택 사항입니다.</p>
       </div>
       <div class="panel">
         <h2>등록된 연수 <span class="hint" id="taskCount"></span></h2>
@@ -358,11 +364,26 @@ function renderStatus() {
   $('cards').innerHTML = D.tasks.map((t, i) => {
     const n = counts[i], pct = total ? Math.round(n / total * 100) : 0;
     const late = /^\d{4}-\d{2}-\d{2}$/.test(t.due) && t.due < today() && n < total;
-    return `<div class="card ${t.name === sel ? 'sel' : ''} ${total && n === total ? 'full' : ''}" data-i="${i}">
+    const isSenior = /고위직|대면/.test(t.name);
+    const isMulti = /다문화/.test(t.name);
+    let cardStyle = '';
+    let roleBadge = '';
+    if (isSenior) {
+      cardStyle = 'border-color:#d8b4fe; background:#faf5ff;';
+      roleBadge = '<div style="color:#7c3aed; font-size:12px; font-weight:700; margin-top:1px;">고위직(교장·교감·행정실장) 대면 필수</div>';
+    } else if (isMulti) {
+      cardStyle = 'border-color:#bae6fd; background:#f0f9ff;';
+      roleBadge = '<div style="color:#0369a1; font-size:12px; font-weight:700; margin-top:1px;">👨‍🏫 교사(교원) 전용 연수</div>';
+    }
+
+    return `<div class="card ${t.name === sel ? 'sel' : ''} ${total && n === total ? 'full' : ''}" data-i="${i}" style="${cardStyle}">
       ${donut(pct)}
-      <div style="min-width:0"><div class="t" title="${esc(t.name)}">${esc(t.name)}</div>
-      <div class="m"><b>${n}</b> / ${total}명 제출</div>
-      <div class="m ${late ? 'late' : ''}">${t.due ? '마감 ' + esc(U.due(t.due)) + (late ? ' (지남)' : '') : '마감일 없음'}</div></div>
+      <div style="min-width:0">
+        <div class="t" title="${esc(t.name)}">${isSenior ? '👑 ' : isMulti ? '👨‍🏫 ' : ''}${esc(t.name)}</div>
+        ${roleBadge}
+        <div class="m"><b>${n}</b> / ${total}명 제출</div>
+        <div class="m ${late ? 'late' : ''}">${t.due ? '마감 ' + esc(U.due(t.due)) + (late ? ' (지남)' : '') : '마감일 없음'}</div>
+      </div>
     </div>`;
   }).join('') || `<div class="panel hint" style="grid-column:1/-1">등록된 연수가 없습니다. <b>📝 연수 관리</b> 탭에서 추가하세요.</div>`;
 
@@ -378,7 +399,15 @@ function renderStatus() {
   const rows = D.students.filter(s => !onlyMiss || D.tasks.some(t => !map.has(K(s.no, s.name, t.name))));
   const nT = D.tasks.length;
   $('table').innerHTML =
-    `<thead><tr><th class="stu">교직원</th>${D.tasks.map(t => `<th class="${t.name === sel ? 'selcol' : ''}">${esc(t.name)}</th>`).join('')}<th>제출률</th></tr></thead>` +
+    `<thead><tr><th class="stu">교직원</th>${D.tasks.map(t => {
+      const isSenior = /고위직|대면/.test(t.name);
+      const isMulti = /다문화/.test(t.name);
+      let thStyle = '';
+      let prefix = '';
+      if (isSenior) { thStyle = 'color:#6b21a8; background:#f5f0ff;'; prefix = '👑 '; }
+      else if (isMulti) { thStyle = 'color:#0369a1; background:#f0f9ff;'; prefix = '👨‍🏫 '; }
+      return `<th class="${t.name === sel ? 'selcol' : ''}" style="${thStyle}">${prefix}${esc(t.name)}</th>`;
+    }).join('')}<th>제출률</th></tr></thead>` +
     `<tbody>${rows.map(s => {
       const idx = D.students.indexOf(s);
       let n = 0;
@@ -450,14 +479,20 @@ function renderTasks() {
   $('taskCount').textContent = `${D.tasks.length}개`;
   $('taskList').innerHTML = D.tasks.map((t, i) => {
     const n = D.students.filter(s => map.has(K(s.no, s.name, t.name))).length;
-    return `<li><span class="nm">${esc(t.name)}</span>
+    const isSenior = /고위직|대면/.test(t.name);
+    const isMulti = /다문화/.test(t.name);
+    let tag = '';
+    if (isSenior) tag = '<span style="color:#7c3aed; font-weight:700;">[👑 고위직 대면] </span>';
+    else if (isMulti) tag = '<span style="color:#0369a1; font-weight:700;">[👨‍🏫 교사 전용] </span>';
+
+    return `<li><span class="nm">${tag}${esc(t.name)}</span>
       <span class="meta">${t.due ? '마감 ' + esc(U.due(t.due)) + ' · ' : ''}${n}/${total}명 제출</span>
       <button class="btn danger" data-del="${i}">삭제</button></li>`;
   }).join('') || '<li class="hint">아직 등록된 연수가 없습니다. 위에서 추가하세요.</li>';
 }
 
-async function addTask() {
-  const name = $('newTask').value.trim();
+async function addTask(taskName) {
+  const name = String(taskName || $('newTask').value).trim();
   if (!name) return $('newTask').focus();
   $('addTask').disabled = true;
   try {
@@ -468,8 +503,21 @@ async function addTask() {
   } catch (e) { alert(e.message || e); }
   finally { $('addTask').disabled = false; }
 }
-$('addTask').addEventListener('click', addTask);
+$('addTask').addEventListener('click', () => addTask());
 $('newTask').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+
+$('tplGenViolence').addEventListener('click', () => {
+  $('newTask').value = '4대 폭력 예방교육 (일반)';
+  addTask('4대 폭력 예방교육 (일반)');
+});
+$('tplSeniorViolence').addEventListener('click', () => {
+  $('newTask').value = '4대 폭력 예방교육 (고위직 대면)';
+  addTask('4대 폭력 예방교육 (고위직 대면)');
+});
+$('tplMulticultural').addEventListener('click', () => {
+  $('newTask').value = '다문화 교육 (교사 전용)';
+  addTask('다문화 교육 (교사 전용)');
+});
 
 $('taskList').addEventListener('click', async e => {
   const b = e.target.closest('[data-del]');

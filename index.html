@@ -49,7 +49,9 @@
     border-radius: 16px; padding: 20px 22px; font-size: 22px; cursor: pointer; text-align: left; color: var(--ink); }
   .task .box { flex: none; width: 34px; height: 34px; border-radius: 10px; border: 3px solid #b8c2d6;
     display: grid; place-items: center; color: #fff; font-size: 22px; font-weight: 900; }
-  .task .name { flex: 1; font-weight: 700; }
+  .task .name-wrap { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .task .name { font-weight: 700; word-break: keep-all; }
+  .task .sub-desc { font-size: 14px; font-weight: 500; }
   .task .due { font-size: 16px; color: var(--sub); white-space: nowrap; }
   .task .due.late { color: #c0392b; font-weight: 700; }
   .task.on { border-color: var(--brand); background: var(--brand-soft); }
@@ -57,6 +59,25 @@
   .task.done { cursor: default; background: #f1f3f7; color: #8a94a6; }
   .task.done .box { background: var(--ok); border-color: var(--ok); }
   .task .tag { font-size: 15px; font-weight: 700; color: var(--ok); background: var(--ok-soft); border-radius: 999px; padding: 4px 12px; white-space: nowrap; }
+
+  /* 고위직 4대 폭력 예방교육 안내 및 전용 스타일 */
+  .senior-notice { background: #faf5ff; border: 2px solid #d8b4fe; border-radius: 18px; padding: 18px 22px; margin-bottom: 22px; line-height: 1.6; box-shadow: 0 2px 8px rgba(122,92,224,.06); }
+  .senior-head { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; margin-bottom: 8px; color: #6b21a8; }
+  .senior-head .icon { font-size: 24px; }
+  .senior-body { font-size: 16px; color: #581c87; }
+  .senior-body b { font-weight: 800; color: #3b0764; }
+  .task.senior { border-color: #c4b5fd; background: #fdfaff; }
+  .task.senior:hover { border-color: #7a5ce0; }
+  .task.senior.on { border-color: #7a5ce0; background: #f3e8ff; }
+  .task.senior.on .box { background: #7a5ce0; border-color: #7a5ce0; }
+  .tag.senior-tag { background: #f3e8ff; color: #6b21a8; border: 1.5px solid #d8b4fe; font-size: 14px; font-weight: 700; }
+  .tag.general-tag { background: #f1f5f9; color: #475569; border: 1.5px solid #cbd5e1; font-size: 14px; font-weight: 600; }
+  .tag.teacher-tag { background: #e0f2fe; color: #0369a1; border: 1.5px solid #bae6fd; font-size: 14px; font-weight: 700; }
+  .task.teacher-task { border-color: #bae6fd; }
+  .task.teacher-task.on { border-color: #0284c7; background: #f0f9ff; }
+  .task.teacher-task.on .box { background: #0284c7; border-color: #0284c7; }
+  .task.disabled-role { background: #f8fafc; opacity: .75; cursor: not-allowed; }
+  .task.disabled-role:hover { border-color: var(--line); transform: none; }
 
   .bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
     padding: 16px 24px; display: flex; justify-content: center; z-index: 10; }
@@ -148,6 +169,15 @@
       <button class="btn-ghost" id="backBtn">← 내가 아니에요</button>
     </div>
     <h2><b>2</b> 이수증을 제출한 연수를 선택해 주세요 <small>(여러 개 선택 가능)</small></h2>
+    <div id="seniorNotice" class="senior-notice" hidden>
+      <div class="senior-head">
+        <span class="icon">👑</span> <strong>고위직(기관장·교장·교감·행정실장 등) 4대 폭력 예방교육 이수 안내</strong>
+      </div>
+      <div class="senior-body">
+        관련 법령 및 지침에 따라 <b>기관장, 교장, 교감, 행정실장 등 고위직</b>은 4대 폭력(성희롱·성폭력 등) 예방교육을 반드시 <b>‘대면교육’</b>으로 별도 이수해야 합니다.<br>
+        고위직 교직원께서는 아래 목록 중 <b>[고위직 대면]</b> 항목을 선택하여 제출 여부를 등록해 주세요.
+      </div>
+    </div>
     <div id="tasks" class="tasks"></div>
     <div class="bar"><button id="submitBtn" disabled>제출 여부 등록하기</button></div>
   </section>
@@ -232,19 +262,77 @@ $('students').addEventListener('click', e => {
   armIdle();
 });
 
+const isSeniorTask = name => /고위직|대면/.test(name);
+const isViolenceTask = name => /4대\s*폭력|폭력\s*예방|성희롱|성폭력|가정폭력/.test(name);
+const isMulticulturalTask = name => /다문화/.test(name);
+
+// 교원(교사) 및 행정직 직종 판별
+function getStaffType(name) {
+  if (/행정실장|주무관|실무사|조리|시설|기사|공무직|행정직/.test(name)) return 'staff';
+  if (/교장|교감|원장|원감|교사|선생|수석|보건|영양교사|상담|특수|담임|부장/.test(name)) return 'teacher';
+  return 'unknown';
+}
+
 function renderTasks() {
   $('whoNo').textContent = me.no;
   $('whoName').textContent = me.name;
   const done = new Set(data.records.filter(r => r.no === me.no && r.name === me.name).map(r => r.task));
   const today = U.fmt(new Date()).slice(0, 10);
+  const staffType = getStaffType(me.name);
+  const isNonTeacher = staffType === 'staff';
+
+  // 고위직/폭력 예방교육 안내 배너 표시
+  const hasViolenceOrSenior = data.tasks.some(t => isViolenceTask(t.name) || isSeniorTask(t.name));
+  $('seniorNotice').hidden = !hasViolenceOrSenior;
+
   $('tasks').innerHTML = data.tasks.map((t, i) => {
     const isDone = done.has(t.name), on = picked.has(t.name);
     const late = /^\d{4}-\d{2}-\d{2}$/.test(t.due) && t.due < today;
+    const isSenior = isSeniorTask(t.name);
+    const isGenViolence = isViolenceTask(t.name) && !isSenior;
+    const isMulti = isMulticulturalTask(t.name);
+
+    let typeTag = '';
+    let subDesc = '';
+    let extraClass = '';
+    let isDisabled = isDone;
+
+    if (isSenior) {
+      typeTag = '<span class="tag senior-tag">👑 고위직 대면 필수</span>';
+      subDesc = '<div class="sub-desc" style="color:#7c3aed;">※ 기관장·교장·교감·행정실장 등 고위직 대상 대면교육 이수증</div>';
+      extraClass = 'senior';
+    } else if (isGenViolence) {
+      typeTag = '<span class="tag general-tag">일반 교직원용</span>';
+      subDesc = '<div class="sub-desc" style="color:#64748b;">※ 일반 교직원 이수 (고위직 제외)</div>';
+    } else if (isMulti) {
+      if (isNonTeacher) {
+        typeTag = '<span class="tag" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5;">교사 전용 (선택 불가)</span>';
+        subDesc = '<div class="sub-desc" style="color:#b91c1c;">※ 교사(교원)만 이수 대상입니다. (행정실 교직원 제외)</div>';
+        extraClass = 'disabled-role';
+        isDisabled = true;
+      } else {
+        typeTag = '<span class="tag teacher-tag">👨‍🏫 교사 전용</span>';
+        subDesc = '<div class="sub-desc" style="color:#0284c7;">※ 교사(교원) 대상 필수 연수</div>';
+        extraClass = 'teacher-task';
+      }
+    }
+
     const side = isDone ? '<span class="tag">제출 등록 완료</span>'
       : t.due ? `<span class="due ${late ? 'late' : ''}">마감 ${esc(U.due(t.due))}${late ? ' 지남' : ''}</span>` : '';
-    return `<button class="task ${isDone ? 'done' : on ? 'on' : ''}" data-i="${i}" ${isDone ? 'disabled' : ''}>
-      <span class="box">${isDone || on ? '✓' : ''}</span><span class="name">${esc(t.name)}</span>${side}</button>`;
+
+    return `<button class="task ${extraClass} ${isDone ? 'done' : on ? 'on' : ''}" data-i="${i}" ${isDisabled ? 'disabled' : ''}>
+      <span class="box">${isDone || on ? '✓' : ''}</span>
+      <div class="name-wrap">
+        <div class="name">${esc(t.name)}</div>
+        ${subDesc}
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
+        ${typeTag}
+        ${side}
+      </div>
+    </button>`;
   }).join('') || '<div class="msg">지금 받는 연수 이수증이 없습니다.</div>';
+
   $('submitBtn').disabled = picked.size === 0;
   $('submitBtn').textContent = picked.size ? `${picked.size}개 제출 등록하기` : '연수를 선택해 주세요';
 }
@@ -253,7 +341,41 @@ $('tasks').addEventListener('click', e => {
   const b = e.target.closest('.task');
   if (!b || b.disabled) return;
   const name = data.tasks[+b.dataset.i].name;
-  picked.has(name) ? picked.delete(name) : picked.add(name);
+
+  // 다문화 교육은 교사만 선택 가능
+  if (isMulticulturalTask(name)) {
+    const staffType = getStaffType(me.name);
+    if (staffType === 'staff') {
+      alert(`‘${name}’은(는) 교사(교원)만 선택할 수 있는 연수입니다.\n(행정실 및 교육공무직 직원은 제출 대상이 아닙니다)`);
+      return;
+    }
+    if (staffType === 'unknown' && !picked.has(name)) {
+      if (!confirm(`‘${name}’은(는) 교사(교원) 대상 연수입니다.\n선생님(교사)이 맞으신가요?`)) {
+        return;
+      }
+    }
+  }
+
+  if (picked.has(name)) {
+    picked.delete(name);
+  } else {
+    // 4대 폭력 교육인 경우: 고위직 대면과 일반 중 하나만 선택되도록 처리
+    if (isSeniorTask(name)) {
+      data.tasks.forEach(x => {
+        if (isViolenceTask(x.name) && !isSeniorTask(x.name) && picked.has(x.name)) {
+          picked.delete(x.name);
+        }
+      });
+    } else if (isViolenceTask(name)) {
+      data.tasks.forEach(x => {
+        if (isSeniorTask(x.name) && picked.has(x.name)) {
+          picked.delete(x.name);
+        }
+      });
+    }
+    picked.add(name);
+  }
+
   renderTasks();
   armIdle();
 });
@@ -262,7 +384,19 @@ $('backBtn').addEventListener('click', reset);
 
 $('submitBtn').addEventListener('click', async () => {
   if (busy || !picked.size) return;
-  if (!confirm(`${me.name} 님, 선택한 ${picked.size}개 연수의 이수증을 별도로 제출하셨나요?\n확인을 누르면 제출 여부만 기록됩니다.`)) return;
+  const pickedList = [...picked];
+  const hasSeniorPicked = pickedList.some(t => isSeniorTask(t));
+  const hasMultiPicked = pickedList.some(t => isMulticulturalTask(t));
+
+  let confirmMsg = `${me.name} 님, 선택한 ${picked.size}개 연수의 이수증을 별도로 제출하셨나요?`;
+  if (hasSeniorPicked) {
+    confirmMsg += `\n\n[안내] 👑 '고위직 대면교육' 이수 항목이 선택되었습니다.\n(기관장·교장·교감·행정실장 등 고위직 대상 대면교육으로 등록됩니다)`;
+  }
+  if (hasMultiPicked) {
+    confirmMsg += `\n\n[안내] 👨‍🏫 '다문화 교육' 이수 항목이 선택되었습니다. (교사 전용 연수)`;
+  }
+  confirmMsg += `\n\n확인을 누르면 제출 여부만 기록됩니다.`;
+  if (!confirm(confirmMsg)) return;
   busy = true;
   clearTimeout(idleTimer);
   $('submitBtn').disabled = true;

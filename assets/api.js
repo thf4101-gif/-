@@ -6,7 +6,7 @@
 (function () {
   const CFG = window.APP_CONFIG || {};
   const URL_KEY = 'trainingCertificateTracker.apiUrl';
-  const DEMO_KEY = 'trainingCertificateTracker.demo.v1';
+  const DEMO_KEY = 'trainingCertificateTracker.demo.v3';
 
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -44,17 +44,27 @@
     const s = store.get(DEMO_KEY);
     if (s) { try { return (mem = JSON.parse(s)); } catch (e) {} }
     if (mem) return mem;
-    const names = '예시교직원A 예시교직원B 예시교직원C 예시교직원D 예시교직원E 예시교직원F'.split(' ');
+    const staffList = [
+      { no: '1', name: '교장 김철수' },
+      { no: '2', name: '교감 이영희' },
+      { no: '3', name: '행정실장 박문수' },
+      { no: '4', name: '교사 홍길동' },
+      { no: '5', name: '교사 신사임당' },
+      { no: '6', name: '주무관 강감찬' },
+    ];
     const today = new Date();
     const day = n => { const d = new Date(today); d.setDate(d.getDate() + n); return fmt(d).slice(0, 10); };
     const d = {
       pin: '1234',
-      students: names.map((n, i) => ({ no: String(i + 1), name: n })),
+      students: staffList,
       tasks: [
         { name: '개인정보 보호 연수', due: day(-1) },
-        { name: '아동학대 신고의무자 교육', due: day(2) },
-        { name: '장애인식 개선 교육', due: day(4) },
-        { name: '청렴 교육', due: day(7) },
+        { name: '4대 폭력 예방교육 (일반)', due: day(2) },
+        { name: '4대 폭력 예방교육 (고위직 대면)', due: day(2) },
+        { name: '다문화 교육 (교사 전용)', due: day(4) },
+        { name: '아동학대 신고의무자 교육', due: day(5) },
+        { name: '장애인식 개선 교육', due: day(7) },
+        { name: '청렴 교육', due: day(10) },
       ],
       records: [],
     };
